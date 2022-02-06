@@ -18,22 +18,37 @@ public class Flight {
         this.depDate = fb.depDate;
         this.retDate = fb.retDate;
     }
-    public static FlightBuilder parse(String s) {
+    public static FlightBuilder parse2(String s) {
         FlightBuilder fb = FlightBuilder.newBuilder();
 
-        int wordCount = 0, length = s.length(), index = 0;
+        int wordCount = 0, index = 0;
         String key = "", value = "";
 
-        while(index < length){
+        while(index < s.length()){
             char ch = s.charAt(index);
-            if(ch == '"' || ch == ':' || ch == ',' || Character.isWhitespace(ch)){ // todo: if it's not alphanumeric then
-                index++;
+            if(!isAlphanumeric(ch)){
                 if (wordCount == 0 && !key.isBlank()){
                     wordCount++;
+                    if (!isKeyNeeded(key)){
+                        //skip to next key
+                        s = s.substring(s.indexOf('"', s.indexOf('"', index+1) + 1));
+                        index = 0;
+                        key = "";
+                        wordCount = 0;
+                    }
                 }
                 if (wordCount == 1 && !value.isBlank()){
-                    wordCount++;
+                    switch(key){
+                        case "Direct": fb = fb.withIsDirect(value.equals("true")); break;
+                        case "Name": fb = fb.withName(value); break;
+                        case "DirectPrice": fb = fb.withDirectPrice(Integer.parseInt(value)); break;
+                        case "IndirectPrice": fb = fb.withIndirectPrice(Integer.parseInt(value)); break;
+                    }
+                    wordCount = 0;
+                    key = "";
+                    value = "";
                 }
+                index++;
             }
             else if (wordCount == 0) {
                 key += ch; // todo: StringBuilder??
@@ -43,19 +58,59 @@ public class Flight {
                 value += ch;
                 index++;
             }
-            else if(wordCount == 2){
+        }
+        return fb;
+    }
+
+    public static FlightBuilder parse(String s) {
+        FlightBuilder fb = FlightBuilder.newBuilder();
+
+        int wordCount = 0, index = 0;
+        String key = "", value = "";
+
+        while(index < s.length()) {
+            char ch = s.charAt(index);
+            if(ch == '\n'){ // wordCount == 2
                 switch(key){
-                    case "Direct": fb.withIsDirect(value.equals("true")); break;
-                    case "Name": fb.withName(value); break;
-                    case "DirectPrice": fb.withDirectPrice(Integer.parseInt(value)); break;
-                    case "IndirectPrice": fb.withIndirectPrice(Integer.parseInt(value)); break;
+                    case "Direct": fb = fb.withIsDirect(value.equals("true")); break;
+                    case "Name": fb = fb.withName(value); break;
+                    case "DirectPrice": fb = fb.withDirectPrice(Integer.parseInt(value)); break;
+                    case "IndirectPrice": fb = fb.withIndirectPrice(Integer.parseInt(value)); break;
                 }
                 wordCount = 0;
                 key = "";
                 value = "";
+                index++;
+            } else {
+                if (ch == ':') {
+                    if (!isKeyNeeded(key)) {
+                        //skip to next key
+                        s = s.substring(s.indexOf('"', s.indexOf('"', index + 1) + 1));
+                        index = 0;
+                        key = "";
+                    } else {
+                        wordCount = 1;
+                        index++;
+                    }
+                } else if (!isAlphanumeric(ch)) { // ignore ' " ', whitespaces (except '\n', ':')
+                    index++;
+                } else if (wordCount == 0) {
+                    key += ch;
+                    index++;
+                } else { // if (wordCount == 1){
+                    value += ch;
+                    index++;
+                }
             }
+
         }
         return fb;
+    }
+    private static boolean isAlphanumeric(char ch) {
+        return ((ch >= 'a' && ch <= 'z') || (ch >= '0' && ch <= '9') || (ch >= 'A' && ch <= 'Z'));
+    }
+    private static boolean isKeyNeeded(String key){
+        return (key.equals("Name") || key.equals("Direct") || key.equals("DirectPrice") || key.equals("IndirectPrice"));
     }
 
     // GETTERS
@@ -78,6 +133,7 @@ public class Flight {
                             this.indirectPrice, this.depDate.toString(), this.retDate.toString());
     }
 
+    // BUILDER
     public static class FlightBuilder {
         private String name;
         private Date depDate;
