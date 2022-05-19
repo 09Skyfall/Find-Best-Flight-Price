@@ -1,4 +1,0 @@
-todo:
- 
-1) SISTEMARE: cerchi /anywhere/ trovi tutti i paesi -> sostiruire anywhere con /it/ trovi quelli specifici all'italia
-2) se faccio troppe richieste mi bloccano
