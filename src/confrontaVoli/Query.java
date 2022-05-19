@@ -1,6 +1,5 @@
 package confrontaVoli;
 
-import java.util.ArrayList;
 import java.util.stream.Stream;
 
 public interface Query {

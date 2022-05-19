@@ -7,6 +7,7 @@ import java.awt.*;
 import java.awt.event.InputEvent;
 import java.io.BufferedWriter;
 import java.io.IOException;
+import java.lang.reflect.Array;
 import java.net.*;
 import java.text.DateFormat;
 import java.time.Period;
@@ -17,21 +18,34 @@ import java.util.stream.Collectors;
 
 
 public class API {
-        private static final String captcha = "https://www.skyscanner.it/sttc/px/captcha-v2/index.html";
-    private static final String prefix = "https://www.skyscanner.it/g/browse-view-bff/dataservices/browse/v3/bvweb/IT/EUR/it-IT/destinations/VENI/";
+    private static final String captcha = "https://www.skyscanner.it/sttc/px/captcha-v2/index.html";
+    private static final String prefix = "https://www.skyscanner.it/g/browse-view-bff/dataservices/browse/v3/bvweb/IT/EUR/it-IT/destinations/VENI/anywhere/";
     private static final String suffix = "/?apikey=8aa374f4e28e4664bf268f850f767535";
 
     public static void main(String[] args) throws IOException, InterruptedException, RequestBlockedException {
-        Query q1 = new QueryByMaxPeriodOfStay(Period.ofDays(2));
-        Query q2 = new QueryByMaxDirectPrice(30);
-        Query q3 = new QueryByMaxIndirectPrice(30);
-        Query q4 = new QueryByDirectFlight(true);
-        ArrayList<Query> ql = new ArrayList<>(); ql.add(q2); ql.add(q3); ql.add(q4); // ql.add(q1);
-        Query andQuery = new AndQuery(ql);
+        // Creazione Query
+        ArrayList<String> destinations = new ArrayList<>();
+            destinations.add("Francia");
+            destinations.add("Irlanda");
+        Query destinationQ = new QueryByDestination(destinations);
+        Query directPriceQ = new QueryByMaxDirectPrice(50);
+        Query indirectPriceQ = new QueryByMaxIndirectPrice(50);
+        Query directFlightQ = new QueryByDirectFlight(true);
+        ArrayList<Query> queryList = new ArrayList<>();
+            queryList.add(destinationQ);
+            queryList.add(directPriceQ);
+            queryList.add(indirectPriceQ);
+            queryList.add(directFlightQ);
+        Query andQuery = new AndQuery(queryList);
 
-        Calendar startDate = Calendar.getInstance(); startDate.add(Calendar.DAY_OF_MONTH, 1);
-        Calendar endDate = Calendar.getInstance(); endDate.add(Calendar.DAY_OF_MONTH, 12);
-        List<Flight> fl = findBestMatch(null, startDate, endDate, null);
+        Calendar startDate = Calendar.getInstance();
+            startDate.add(Calendar.DAY_OF_MONTH, 1);
+        Calendar endDate = Calendar.getInstance();
+            endDate.add(Calendar.DAY_OF_MONTH, 90);
+
+        List<Flight> fl = findBestMatch(andQuery, null, endDate, 2);
+
+        System.out.println("\n\n");
         int nFlights = 0;
         for(Flight f : fl){
             nFlights += 1;
@@ -45,65 +59,67 @@ public class API {
      * @param q
      * @param startDate
      * @param endDate (REQUIRED non null, REQUIRED to be not the same instance as startDate)
-     * @param destination: destination the flight should be directed to. If null, any destination will be searched for
+     * @param maxPeriodOfStay:
      * @return list of flights matching given query.
      * @throws IOException
      * @throws InterruptedException
      */
-    public static ArrayList<Flight> findBestMatch(@Nullable Query q, @Nullable Calendar startDate, @NotNull Calendar endDate, @Nullable String destination)
+    public static ArrayList<Flight> findBestMatch(@Nullable Query q, @Nullable Calendar startDate, @NotNull Calendar endDate, @NotNull int maxPeriodOfStay)
             throws IOException, InterruptedException, RequestBlockedException {
-        if (startDate == null) startDate = Calendar.getInstance();
-        if(destination == null) destination = "anywhere";
-        FlightDatabase fdb = populateDatabase(startDate, endDate, destination);
+        if (startDate == null)
+            startDate = Calendar.getInstance();
+        startDate.add(Calendar.DAY_OF_MONTH, 1);
+
+        FlightDatabase fdb = populateDatabase(startDate, endDate, maxPeriodOfStay*86400000);
 
         if (q == null) {
-            return fdb.getDatabase();
+            return fdb.getDatabase().collect(Collectors.toCollection(ArrayList<Flight>::new));
         } else {
-            return q.matches(fdb.getDatabase().stream()).collect(Collectors.toCollection(ArrayList<Flight>::new));
+            return q.matches(fdb.getDatabase()).collect(Collectors.toCollection(ArrayList<Flight>::new));
         }
     }
     /**
      * @param startDate: (REQUIRED non null) date from which flights should be searched for.
      * @param endDate: (REQUIRED non null) date until which flights should be searched for
-     * @param destination: (REQUIRED non null) destination the flight should be directed to.
+     * @param maxPeriodOfStayInMs: (REQUIRED non null)
      * @return a database containing flight with all possible combinations of dates, ranging from startDate
-     *         and endDate. Each flight's return date should be no longer than maxRange days after its departure date
+     *         and endDate. Each flight's return date should be no longer than periodOfStayInMs days after its departure date
      * @throws IOException
      * @throws InterruptedException
      */
-    private static FlightDatabase populateDatabase(@NotNull Calendar startDate, @NotNull Calendar endDate, @NotNull String destination)
+    private static FlightDatabase populateDatabase(@NotNull Calendar startDate, @NotNull Calendar endDate, @NotNull int maxPeriodOfStayInMs)
             throws IOException, InterruptedException, RequestBlockedException {
+
+        startDate.set(Calendar.HOUR_OF_DAY, 0); startDate.set(Calendar.MINUTE, 0); startDate.set(Calendar.SECOND, 0); startDate.set(Calendar.MILLISECOND, 0);
+        endDate.set(Calendar.HOUR_OF_DAY, 0); endDate.set(Calendar.MINUTE, 0); endDate.set(Calendar.SECOND, 0); endDate.set(Calendar.MILLISECOND, 0);
+
         FlightDatabase fdb = new FlightDatabase();
-        int ms = 0;
+        int ms = 100;
 
-        for(; !startDate.after(endDate); startDate.add(Calendar.DAY_OF_MONTH, 1)){ // todo: shouldn't count hours, only dd/mm/yy
-            for( Calendar returnDate = (Calendar) startDate.clone();  !returnDate.after(endDate); returnDate.add(Calendar.DAY_OF_MONTH, 1)){
+        System.out.println("Fetching info...\nDeparture Date:    Return Date:");
+        for(; !startDate.after(endDate); startDate.add(Calendar.DAY_OF_MONTH, 1)){
+            for( Calendar returnDate = (Calendar) startDate.clone();  !returnDate.after(endDate) &&
+                (returnDate.getTimeInMillis() - startDate.getTimeInMillis() <= maxPeriodOfStayInMs); returnDate.add(Calendar.DAY_OF_MONTH, 1)){
 
-                String depDate = (DateFormat.getDateInstance(DateFormat.MEDIUM, Locale.JAPAN)).format(startDate.getTime());
-                String retDate = (DateFormat.getDateInstance(DateFormat.MEDIUM, Locale.JAPAN)).format(returnDate.getTime());
-                depDate = depDate.replace('/', '-');
-                retDate = retDate.replace('/', '-');
+                    String depDate = (DateFormat.getDateInstance(DateFormat.MEDIUM, Locale.JAPAN)).format(startDate.getTime());
+                    String retDate = (DateFormat.getDateInstance(DateFormat.MEDIUM, Locale.JAPAN)).format(returnDate.getTime());
+                    depDate = depDate.replace('/', '-');
+                    retDate = retDate.replace('/', '-');
 
-                String url = prefix + destination + "/" + depDate + "/" + retDate + suffix;
-                String body;
-                try {
-                    body = getBody(url);
-                } catch (RequestBlockedException rbe){
-                    solveCaptcha();
-                    Thread.sleep(3000);
-                    body = getBody(url);
-                }
+                    String url = prefix + depDate + "/" + retDate + suffix;
+                    System.out.format("  %s         %s\n", depDate, retDate);
+                    String body = getBody(url);
 
-                List<Flight> lf = createFlights(body, startDate.getTime(), returnDate.getTime());
-                for(Flight f : lf){
-                    if (!(f.getDirectPrice() == 0 && f.getIndirectPrice() == 0)) {
-                        fdb.add(f);
+                    List<Flight> lf = createFlights(body, startDate.getTime(), returnDate.getTime());
+                    for (Flight f : lf) {
+                        if (!(f.getDirectPrice() == 0 && f.getIndirectPrice() == 0)) {
+                            fdb.add(f);
+                        }
                     }
-                }
-                if (ms < 1750) {
-                    ms += 100;
-                }
-                Thread.sleep(ms); //todo: how many ms without getting blocked? cap at 2000ms works (tested with 12 days range)
+                    if (ms < 2000) {
+                        ms += 100;
+                    }
+                    Thread.sleep(ms);
             }
         }
         return fdb;
