@@ -71,6 +71,9 @@ public class Flight {
     }
 
     // GETTERS
+    public String getName() {
+        return this.name;
+    }
     public int getDirectPrice(){
         return this.directPrice;
     }
@@ -89,6 +92,17 @@ public class Flight {
         return String.format("Destination: %s\nDirect price: %d, Indirect price: %d\nDeparture date: %s, Return date: %s\n\n" +
                             "============================================================================", this.name, this.directPrice,
                             this.indirectPrice, this.depDate.toString(), this.retDate.toString());
+    }
+    @Override
+    public boolean equals(Object f) {
+        if(f.getClass() == Flight.class) {
+            return this.name.equals(((Flight)f).getName()) &&
+                    this.depDate == ((Flight)f).getDepDate() &&
+                    this.retDate == ((Flight)f).getRetDate() &&
+                    this.isDirect == ((Flight)f).isDirect() &&
+                    this.directPrice == ((Flight)f).getDirectPrice() &&
+                    this.indirectPrice == ((Flight)f).getIndirectPrice();
+        } else return false;
     }
 
     // BUILDER
