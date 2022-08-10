@@ -89,9 +89,13 @@ public class Flight {
 
     @Override
     public String toString(){
-        return String.format("Destination: %s\nDirect price: %d, Indirect price: %d\nDeparture date: %s, Return date: %s\n\n" +
-                            "============================================================================", this.name, this.directPrice,
-                            this.indirectPrice, this.depDate.toString(), this.retDate.toString());
+//        return String.format("Destination: %s\nDirect price: %d, Indirect price: %d\nDeparture date: %s, Return date: %s\n\n" +
+//                            "============================================================================", this.name, this.directPrice,
+//                            this.indirectPrice, this.depDate.toString(), this.retDate.toString());
+        return String.format("  {\n   \"destination\": \"%s\",\n" +
+                                        "   \"directPrice\": \"%s\",\n" +
+                                        "   \"departureDate\": \"%s\",\n" +
+                                        "   \"returnDate\": \"%s\"\n  }", this.name, this.directPrice, this.depDate.toString(), this.retDate.toString());
     }
     @Override
     public boolean equals(Object f) {

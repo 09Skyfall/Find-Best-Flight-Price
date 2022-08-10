@@ -29,6 +29,7 @@ public class API {
 
         // Creazione FilterQuery
         Query notDestination = new NotQuery(new QueryByDestination(new ArrayList<>(List.of("Italia"))));
+        // Query notDestination = (new QueryByDestination(new ArrayList<>(List.of("Italia"))));
         Query directPriceQ = new QueryByMaxDirectPrice(50);
         Query indirectPriceQ = new QueryByMaxIndirectPrice(50);
         Query directFlightQ = new QueryByDirectFlight(true);
@@ -36,13 +37,13 @@ public class API {
 
         // date
         Calendar startDate = Calendar.getInstance();
-            startDate.add(Calendar.DAY_OF_MONTH, 1);
+            startDate.add(Calendar.DAY_OF_MONTH, 60);
         Calendar endDate = Calendar.getInstance();
-            endDate.add(Calendar.DAY_OF_MONTH, 90);
+            endDate.add(Calendar.DAY_OF_MONTH, 70);
 
-        List<Flight> fl = findBestMatch(andQuery, andSearchQuery, startDate, endDate);
+        FlightDatabase fdb = findBestMatch(andQuery, andSearchQuery, startDate, endDate);
 
-        if(fl.isEmpty()) {
+        if(fdb.isEmpty()) {
             System.out.println("Non sono stati trovati voli");
         } else {
             // inizializzazione I/O
@@ -51,15 +52,10 @@ public class API {
 
             // scrivi output
             FileWriter fileWriter = new FileWriter(out.getPath());
-            System.out.println("\n\n");
-            int nFlights = 0;
-            for (Flight f : fl) {
-                nFlights += 1;
-                fileWriter.append(f.toString());
-            }
-            fileWriter.append("\n\n");
+            fileWriter.append(fdb.toJSON());
             fileWriter.close();
-            System.out.format("Sono stati trovati %d voli.", nFlights);
+
+            System.out.format("Sono stati trovati %d voli.", fdb.size());
         }
     }
 
@@ -86,11 +82,11 @@ public class API {
      * @param q
      * @param startDate
      * @param endDate (REQUIRED non null, REQUIRED to be not the same instance as startDate)
-     * @return list of flights matching given query.
+     * @return flight database that matches the given query.
      * @throws IOException
      * @throws InterruptedException
      */
-    public static ArrayList<Flight> findBestMatch(@Nullable Query q, @NotNull SearchQuery sq, @Nullable Calendar startDate, @NotNull Calendar endDate)
+    public static FlightDatabase findBestMatch(@Nullable Query q, @NotNull SearchQuery sq, @Nullable Calendar startDate, @NotNull Calendar endDate)
             throws IOException, InterruptedException {
         if (startDate == null)
             startDate = Calendar.getInstance();
@@ -99,9 +95,9 @@ public class API {
         FlightDatabase fdb = populateDatabase(startDate, endDate, sq);
 
         if (q == null) {
-            return fdb.getDatabase().collect(Collectors.toCollection(ArrayList<Flight>::new));
+            return fdb;
         } else {
-            return q.matches(fdb.getDatabase()).collect(Collectors.toCollection(ArrayList<Flight>::new));
+            return new FlightDatabase(q.matches(fdb.getDatabase()).collect(Collectors.toCollection(ArrayList<Flight>::new)));
         }
     }
     /**
@@ -129,10 +125,8 @@ public class API {
             for(Calendar returnDate = (Calendar)startDate.clone(); !returnDate.after(endDate); returnDate.add(Calendar.DAY_OF_MONTH, 1)){
 
                     if(sq.matches(startDate, returnDate)) {
-                        String depDate = (DateFormat.getDateInstance(DateFormat.MEDIUM, Locale.JAPAN)).format(startDate.getTime());
-                        String retDate = (DateFormat.getDateInstance(DateFormat.MEDIUM, Locale.JAPAN)).format(returnDate.getTime());
-                        depDate = depDate.replace('/', '-');
-                        retDate = retDate.replace('/', '-');
+                        String depDate = getDateString(startDate);
+                        String retDate = getDateString(returnDate);
 
                         String url = prefix + depDate + "/" + retDate + suffix;
                         System.out.format("  %s         %s\n", depDate, retDate);
@@ -163,6 +157,11 @@ public class API {
                 break;
         }
         return fdb;
+    }
+
+    private static String getDateString(Calendar date) {
+        String d = (DateFormat.getDateInstance(DateFormat.MEDIUM, Locale.JAPAN)).format(date.getTime());
+        return d.replace('/', '-');
     }
 
     /**
