@@ -23,23 +23,23 @@ public class API {
 
     public static void main(String[] args) throws IOException, InterruptedException {
         // Creazione SearchQuery
-        SearchQuery maxPeriodOfStayQuery = new SearchQueryMaxPeriodOfStay(2);
+        SearchQuery maxPeriodOfStayQuery = new SearchQueryMaxPeriodOfStay(4);
         SearchQuery dayOfTheWeekQuery= new SearchQueryDayOfTheWeek(new ArrayList<>(Arrays.asList(Calendar.FRIDAY, Calendar.SATURDAY, Calendar.SUNDAY)));
-        SearchQuery andSearchQuery = new SearchQueryAndQuery(Arrays.asList(maxPeriodOfStayQuery,  dayOfTheWeekQuery));
+        SearchQuery andSearchQuery = new SearchQueryAndQuery(Arrays.asList(maxPeriodOfStayQuery, dayOfTheWeekQuery  ));
 
         // Creazione FilterQuery
         Query notDestination = new NotQuery(new QueryByDestination(new ArrayList<>(List.of("Italia"))));
-        // Query notDestination = (new QueryByDestination(new ArrayList<>(List.of("Italia"))));
-        Query directPriceQ = new QueryByMaxDirectPrice(50);
-        Query indirectPriceQ = new QueryByMaxIndirectPrice(50);
+        // Query notDestination = (new QueryByDestination(new ArrayList<>(List.of("Francia"))));
+        Query directPriceQ = new QueryByMaxDirectPrice(55);
         Query directFlightQ = new QueryByDirectFlight(true);
-        Query andQuery = new AndQuery(Arrays.asList(notDestination, directPriceQ, indirectPriceQ, directFlightQ));
+        Query andQuery = new AndQuery(Arrays.asList(notDestination, directPriceQ, directFlightQ));
 
         // date
         Calendar startDate = Calendar.getInstance();
-            startDate.add(Calendar.DAY_OF_MONTH, 60);
+        startDate.set(2022, Calendar.NOVEMBER, 1 - 1);
+
         Calendar endDate = Calendar.getInstance();
-            endDate.add(Calendar.DAY_OF_MONTH, 70);
+        endDate.set(2023, Calendar.JANUARY, 30);
 
         FlightDatabase fdb = findBestMatch(andQuery, andSearchQuery, startDate, endDate);
 
@@ -47,7 +47,7 @@ public class API {
             System.out.println("Non sono stati trovati voli");
         } else {
             // inizializzazione I/O
-            String path = "C:\\\\Users\\Sky\\Desktop\\voli.txt";
+            String path = "C:\\\\Users\\Sky\\Desktop\\voli.json";
             File out = createFile(path);
 
             // scrivi output
