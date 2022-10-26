@@ -1,14 +1,16 @@
 package confrontaVoli;
 
+import org.json.simple.JSONObject;
+
 import java.util.Date;
 
 public class Flight {
-    private String name;
-    private Date depDate;
-    private Date retDate;
-    private boolean isDirect;
-    private int directPrice;
-    private int indirectPrice;
+    private final String name;
+    private final Date depDate;
+    private final Date retDate;
+    private final boolean isDirect;
+    private final long directPrice;
+    private final long indirectPrice;
 
     private Flight(FlightBuilder fb){
         this.name = fb.name;
@@ -19,65 +21,33 @@ public class Flight {
         this.retDate = fb.retDate;
     }
 
-    public static FlightBuilder parse(String s) {
+    public static FlightBuilder parse(JSONObject flight) {
         FlightBuilder fb = FlightBuilder.newBuilder();
 
-        int wordCount = 0, index = 0;
-        String key = "", value = "";
-
-        while(index < s.length()) {
-            char ch = s.charAt(index);
-            if(ch == '\n'){ // wordCount == 2
-                switch(key){
-                    case "Direct": fb = fb.withIsDirect(value.equals("true")); break;
-                    case "Name": fb = fb.withName(value); break;
-                    case "DirectPrice": fb = fb.withDirectPrice(Integer.parseInt(value)); break;
-                    case "IndirectPrice": fb = fb.withIndirectPrice(Integer.parseInt(value)); break;
-                }
-                wordCount = 0;
-                key = "";
-                value = "";
-                index++;
-            } else {
-                if (ch == ':') {
-                    if (!isKeyNeeded(key)) {
-                        //skip to next key
-                        s = s.substring(s.indexOf('"', s.indexOf('"', index + 1) + 1));
-                        index = 0;
-                        key = "";
-                    } else {
-                        wordCount = 1;
-                        index++;
-                    }
-                } else if (!isAlphanumeric(ch)) { // ignore ' " ', whitespaces (except '\n', ':')
-                    index++;
-                } else if (wordCount == 0) {
-                    key += ch;
-                    index++;
-                } else { // if (wordCount == 1){
-                    value += ch;
-                    index++;
-                }
-            }
-
+        if (flight.containsKey("IndirectPrice")) {
+            fb.withIndirectPrice((long) flight.get("IndirectPrice"));
         }
+        if (flight.containsKey("DirectPrice")) {
+            fb.withDirectPrice((long) flight.get("DirectPrice"));
+        }
+        if (flight.containsKey("Name")) {
+            fb.withName((String)flight.get("Name"));
+        }
+        if (flight.containsKey("Direct")) {
+            fb.withIsDirect((boolean) flight.get("Direct"));
+        }
+
         return fb;
-    }
-    private static boolean isAlphanumeric(char ch) {
-        return ((ch >= 'a' && ch <= 'z') || (ch >= '0' && ch <= '9') || (ch >= 'A' && ch <= 'Z'));
-    }
-    private static boolean isKeyNeeded(String key){
-        return (key.equals("Name") || key.equals("Direct") || key.equals("DirectPrice") || key.equals("IndirectPrice"));
     }
 
     // GETTERS
     public String getName() {
         return this.name;
     }
-    public int getDirectPrice(){
+    public long getDirectPrice(){
         return this.directPrice;
     }
-    public int getIndirectPrice(){
+    public long getIndirectPrice(){
         return this.indirectPrice;
     }
     public String getDestination() { return this.name; }
@@ -89,9 +59,6 @@ public class Flight {
 
     @Override
     public String toString(){
-//        return String.format("Destination: %s\nDirect price: %d, Indirect price: %d\nDeparture date: %s, Return date: %s\n\n" +
-//                            "============================================================================", this.name, this.directPrice,
-//                            this.indirectPrice, this.depDate.toString(), this.retDate.toString());
         return String.format("  {\n   \"destination\": \"%s\",\n" +
                                         "   \"directPrice\": \"%s\",\n" +
                                         "   \"departureDate\": \"%s\",\n" +
@@ -115,8 +82,8 @@ public class Flight {
         private Date depDate;
         private Date retDate;
         private boolean isDirect;
-        private int directPrice;
-        private int indirectPrice;
+        private long directPrice;
+        private long indirectPrice;
 
         public static FlightBuilder newBuilder(){
            return new FlightBuilder();
@@ -129,11 +96,11 @@ public class Flight {
             this.name = name;
             return this;
         }
-        FlightBuilder withDirectPrice(int price){
+        FlightBuilder withDirectPrice(long price){
             this.directPrice = price;
             return this;
         }
-        FlightBuilder withIndirectPrice(int price){
+        FlightBuilder withIndirectPrice(long price){
             this.indirectPrice = price;
             return this;
         }
